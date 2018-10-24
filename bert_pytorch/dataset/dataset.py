@@ -67,7 +67,7 @@ class BERTDataset(Dataset):
         t = [self.vocab.sos_index] + t_random + [self.vocab.eos_index]
         t_label = [self.vocab.pad_index] + t_label + [self.vocab.pad_index]
 
-        segment_label = [1] * self.seq_len
+        segment_label = ([1] * len(t))[:self.seq_len]
         bert_input = t[:self.seq_len]
         bert_label = t_label[:self.seq_len]
 
