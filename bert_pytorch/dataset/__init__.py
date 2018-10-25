@@ -1,2 +1,2 @@
-from .dataset import BERTDataset
+from .dataset import BERTDataset, LabeledDataset
 from .vocab import WordVocab
