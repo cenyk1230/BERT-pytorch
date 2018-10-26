@@ -139,8 +139,7 @@ class BERTTrainer:
 
             if i % self.log_freq == 0:
                 data_iter.write(str(post_fix))
-
-                self.writer.add_scalar("pre-train-loss", loss.item(), epoch * (len(data_iter) / self.log_freq + 1) + i / self.log_freq)
+                self.writer.add_scalar(f'pretrain/{str_code}_loss', loss, epoch * len(data_iter) + i)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter))#, "total_acc=",
               #total_correct * 100.0 / total_element)

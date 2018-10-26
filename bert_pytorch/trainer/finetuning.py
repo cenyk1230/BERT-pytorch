@@ -127,12 +127,12 @@ class FineTuningTrainer:
                 data_iter.write(str(post_fix))
 
                 if str_code == "train":
-                    self.writer.add_scalar("loss/" + str_code, loss.item(), epoch * (len(data_iter) / self.log_freq + 1) + i / self.log_freq)
-                    self.writer.add_scalar("accu/" + str_code, correct * 100.0 / data["bert_label"].nelement(), epoch * (len(data_iter) / self.log_freq + 1) + i / self.log_freq)
+                    self.writer.add_scalar("loss/train", loss, epoch * len(data_iter) + i)
+                    self.writer.add_scalar("accu/train", correct * 100.0 / data["bert_label"].nelement(), epoch * len(data_iter) + i)
 
         if str_code == "test":
-            self.writer.add_scalar("loss/" + str_code, avg_loss / len(data_iter), epoch)
-            self.writer.add_scalar("accu/" + str_code, total_correct * 100.0 / total_element, epoch)
+            self.writer.add_scalar("loss/test", avg_loss / len(data_iter), epoch)
+            self.writer.add_scalar("accu/test", total_correct * 100.0 / total_element, epoch)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
               total_correct * 100.0 / total_element)
