@@ -24,13 +24,13 @@ if __name__ == '__main__':
 
     with open(args.edgelist, 'r') as f:
         lines = f.read().strip().split('\n')
-        edgelist = [[int(v) - 1 for v in line.split()] for line in lines]
+        edgelist = [[int(v) for v in line.split()] for line in lines]
     nodelist = []
     for edge in edgelist:
         nodelist.append(edge[0])
         nodelist.append(edge[1])
     nodelist = list(set(nodelist))
-    # The input graph has node id starting from 1
+    # The input graph has node id starting from 0
     assert nodelist == list(range(len(nodelist)))
 
     graph = igraph.Graph(len(nodelist), directed=False)
@@ -51,4 +51,5 @@ if __name__ == '__main__':
 
     with open(args.edgelist + '.walks', 'w') as f:
         for ego in egos:
-            f.write(' '.join([str(v + 1) for v in ego]) + '\n')
+            f.write(' '.join([str(v) for v in ego]) + '\n')
+
