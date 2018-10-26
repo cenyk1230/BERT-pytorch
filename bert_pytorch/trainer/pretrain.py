@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
+from tensorboardX import SummaryWriter
+
 from ..model import BERTLM, BERT
 from .optim_schedule import ScheduledOptim
 
@@ -55,13 +57,16 @@ class BERTTrainer:
         self.test_data = test_dataloader
 
         # Setting the Adam optimizer with hyper-param
-        self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        # self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        self.optim = Adam(self.model.parameters(), lr=lr)
         self.optim_schedule = ScheduledOptim(self.optim, self.bert.hidden, n_warmup_steps=warmup_steps)
 
         # Using Negative Log Likelihood Loss function for predicting the masked_token
         self.criterion = nn.NLLLoss(ignore_index=0)
 
         self.log_freq = log_freq
+
+        self.writer = SummaryWriter()
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
@@ -134,6 +139,8 @@ class BERTTrainer:
 
             if i % self.log_freq == 0:
                 data_iter.write(str(post_fix))
+
+                self.writer.add_scalar("pre-train-loss", loss.item(), epoch * (len(data_iter) / self.log_freq + 1) + i / self.log_freq)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter))#, "total_acc=",
               #total_correct * 100.0 / total_element)

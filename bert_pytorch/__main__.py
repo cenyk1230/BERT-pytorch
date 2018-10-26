@@ -17,6 +17,7 @@ def train():
     parser.add_argument("-o", "--output_path", required=True, type=str, help="ex)output/bert.model")
 
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
+    parser.add_argument("-p", "--pre_train_model", type=str, default=None, help="pre-trained model")
 
     parser.add_argument("-hs", "--hidden", type=int, default=256, help="hidden size of transformer model")
     parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
@@ -83,8 +84,10 @@ def train():
             if test_dataset is not None else None
 
         print("Building BERT model")
-        bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
-        # bert = torch.load("output/bert-sst.model.ep9")
+        if args.pre_train_model:
+            bert = torch.load(args.pre_train_model)
+        else:
+            bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
 
         print("Creating BERT Trainer")
         trainer = FineTuningTrainer(bert, args.hidden, 2, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
