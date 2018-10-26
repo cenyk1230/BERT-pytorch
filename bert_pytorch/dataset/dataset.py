@@ -21,7 +21,7 @@ class BERTDataset(Dataset):
 
             if on_memory:
                 # self.lines = [line[:-1].split("\t")
-                self.lines = [line[:-1]
+                self.lines = [line.strip()
                               for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines)]
                 self.corpus_lines = len(self.lines)
 
@@ -133,7 +133,7 @@ class BERTDataset(Dataset):
 
             # t1, t2 = line[:-1].split("\t")
             # return t1, t2
-            return line[:-1]
+            return line.strip()
 
     def get_random_line(self):
         if self.on_memory:
@@ -146,7 +146,7 @@ class BERTDataset(Dataset):
             for _ in range(random.randint(self.corpus_lines if self.corpus_lines < 1000 else 1000)):
                 self.random_file.__next__()
             line = self.random_file.__next__()
-        return line[:-1].split("\t")[1]
+        return line.strip().split("\t")[1]
 
 
 class LabeledDataset(Dataset):
@@ -165,8 +165,8 @@ class LabeledDataset(Dataset):
                     self.corpus_lines += 1
 
             if on_memory:
-                self.lines = [line[:-1].split("\t")
-                              for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines)]
+                self.lines = [line.strip().split("\t")
+                              for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines) if "\t" in line]
                 self.corpus_lines = len(self.lines)
 
         if not on_memory:
@@ -218,4 +218,4 @@ class LabeledDataset(Dataset):
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
                 line = self.file.__next__()
 
-            return line[:-1].split("\t")
+            return line.strip().split("\t")
