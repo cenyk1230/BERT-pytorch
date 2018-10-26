@@ -20,6 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--restart-prob', type=float, default=0.8)
     parser.add_argument('--number-walks', type=float, default=10)
     parser.add_argument('--walk-length', type=float, default=20)
+    parser.add_argument('--threshold', type=int, default=10000)
     args = parser.parse_args()
 
     with open(args.edgelist, 'r') as f:
@@ -43,10 +44,16 @@ if __name__ == '__main__':
         ego = [u]
         walker = random_walk_with_restart(
             graph, start=[u], restart_prob=args.restart_prob)
+        trial = 0
         while len(ego) < args.walk_length:
             v = walker.__next__()
             if v not in ego:
+                trial = 0
                 ego.append(v)
+            else:
+                trial += 1
+            if trial >= args.threshold:
+                break
         egos.append(ego)
 
     with open(args.edgelist + '.walks', 'w') as f:
