@@ -18,9 +18,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--edgelist', type=str)
     parser.add_argument('--restart-prob', type=float, default=0.8)
-    parser.add_argument('--number-walks', type=float, default=10)
-    parser.add_argument('--walk-length', type=float, default=20)
-    parser.add_argument('--threshold', type=int, default=10000)
+    parser.add_argument('--number-walks', type=int, default=10)
+    parser.add_argument('--walk-length', type=int, default=20)
+    parser.add_argument('--threshold', type=int, default=1000)
     args = parser.parse_args()
 
     with open(args.edgelist, 'r') as f:

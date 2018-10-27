@@ -24,9 +24,9 @@ def train():
     parser.add_argument("-a", "--attn_heads", type=int, default=8, help="number of attention heads")
     parser.add_argument("-s", "--seq_len", type=int, default=22, help="maximum sequence len")
 
-    parser.add_argument("-b", "--batch_size", type=int, default=64, help="number of batch_size")
+    parser.add_argument("-b", "--batch_size", type=int, default=128, help="number of batch_size")
     parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
-    parser.add_argument("-w", "--num_workers", type=int, default=5, help="dataloader worker size")
+    parser.add_argument("-w", "--num_workers", type=int, default=16, help="dataloader worker size")
 
     parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
     parser.add_argument("--log_freq", type=int, default=10, help="printing loss every n iter: setting n")
