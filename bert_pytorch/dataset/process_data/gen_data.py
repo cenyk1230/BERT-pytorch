@@ -54,8 +54,8 @@ if __name__ == '__main__':
         neg_nodes = list(all_nodes - set(nodes))
         nodes = list(nodes)
 
-        train_node1, test_node1 = train_test_split(nodes, train_size=0.5)
-        train_node2, test_node2 = train_test_split(neg_nodes, train_size=0.5)
+        train_node1, test_node1 = train_test_split(nodes, train_size=0.8)
+        train_node2, test_node2 = train_test_split(neg_nodes, train_size=0.8)
 
         with open(dire + '/train%d' % i, 'w') as out:
             for v in train_node1:

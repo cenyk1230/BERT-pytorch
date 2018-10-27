@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader
 
 from tensorboardX import SummaryWriter
 
+import numpy as np
+from sklearn.metrics import f1_score
+
 from ..model import BERT, CLS_MODEL
 from .optim_schedule import ScheduledOptim
 
@@ -18,8 +21,8 @@ class FineTuningTrainer:
 
     def __init__(self, bert: BERT, hidden: int, class_size : int,
                  train_dataloader: DataLoader, test_dataloader: DataLoader = None,
-                 lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.01, warmup_steps=10000,
-                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10):
+                 lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.00, warmup_steps=10000,
+                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, data_name=""):
         """
         :param bert: BERT model which you want to train
         :param vocab_size: total word vocab size
@@ -51,14 +54,16 @@ class FineTuningTrainer:
         self.test_data = test_dataloader
 
         # Setting the Adam optimizer with hyper-param
-        # self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
-        self.optim = Adam(self.model.parameters(), lr=lr)
+        self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        # self.optim = Adam(self.model.parameters(), lr=lr)
         self.optim_schedule = ScheduledOptim(self.optim, self.bert.hidden, n_warmup_steps=warmup_steps)
 
         # Using Negative Log Likelihood Loss function for predicting the masked_token
         self.criterion = nn.NLLLoss()
 
         self.log_freq = log_freq
+
+        self.data_num = data_name
 
         self.writer = SummaryWriter()
 
@@ -68,7 +73,7 @@ class FineTuningTrainer:
         self.iteration(epoch, self.train_data)
 
     def test(self, epoch):
-        self.iteration(epoch, self.test_data, train=False)
+        return self.iteration(epoch, self.test_data, train=False)
 
     def iteration(self, epoch, data_loader, train=True):
         """
@@ -93,6 +98,9 @@ class FineTuningTrainer:
         total_correct = 0
         total_element = 0
 
+        y_scores = []
+        y_labels = []
+
         for i, data in data_iter:
             # 0. batch_data will be sent into the device(GPU or cpu)
             data = {key: value.to(self.device) for key, value in data.items()}
@@ -108,6 +116,11 @@ class FineTuningTrainer:
                 self.optim_schedule.zero_grad()
                 loss.backward()
                 self.optim_schedule.step_and_update_lr()
+            else:
+                # print(output[:,1])
+                # print(data["bert_label"])
+                y_scores.append(output[:,1].data.cpu().numpy())
+                y_labels.append(data["bert_label"].cpu().numpy())
 
             # prediction accuracy
             correct = output.argmax(dim=-1).eq(data["bert_label"]).sum().item()
@@ -127,15 +140,39 @@ class FineTuningTrainer:
                 data_iter.write(str(post_fix))
 
                 if str_code == "train":
-                    self.writer.add_scalar("loss/train", loss, epoch * len(data_iter) + i)
-                    self.writer.add_scalar("accu/train", correct * 100.0 / data["bert_label"].nelement(), epoch * len(data_iter) + i)
+                    self.writer.add_scalar(self.data_num + "_loss/train", loss, epoch * len(data_iter) + i)
+                    self.writer.add_scalar(self.data_num + "_accu/train", correct * 100.0 / data["bert_label"].nelement(), epoch * len(data_iter) + i)
 
         if str_code == "test":
-            self.writer.add_scalar("loss/test", avg_loss / len(data_iter), epoch)
-            self.writer.add_scalar("accu/test", total_correct * 100.0 / total_element, epoch)
+            self.writer.add_scalar(self.data_num + "_loss/test", avg_loss / len(data_iter), epoch)
+            self.writer.add_scalar(self.data_num + "_accu/test", total_correct * 100.0 / total_element, epoch)
 
-        print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
-              total_correct * 100.0 / total_element)
+            # y_scores = torch.cat(y_scores).cpu().numpy()
+            # y_labels = torch.cat(y_labels).cpu().numpy()
+
+            y_scores = np.concatenate(y_scores)
+            y_labels = np.concatenate(y_labels)
+
+            y_sorts = np.argsort(y_scores)[::-1]
+            y_preds = np.zeros_like(y_labels, dtype=np.int)
+            y_preds[y_sorts[:np.sum(y_labels)]] = 1
+
+            f1 = f1_score(y_labels, y_preds)
+            self.writer.add_scalar(self.data_num + "_f1/test", f1, epoch)
+
+            print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
+                  total_correct * 100.0 / total_element, "f1=", f1)
+
+            tp = (y_labels == 1) * (y_scores == 1)
+            fp = (y_labels == 0) * (y_scores == 1)
+            fn = (y_labels == 1) * (y_scores == 0)
+
+            return f1, tp, fp, fn
+
+        else:
+            print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
+                  total_correct * 100.0 / total_element)
+
 
     def save(self, epoch, file_path="output/finetuning.model"):
         """
