@@ -20,8 +20,8 @@ class BERTDataset(Dataset):
                     self.corpus_lines += 1
 
             if on_memory:
-                # self.lines = [line[:-1].split("\t")
-                self.lines = [line.strip()
+                # self.lines = [line.strip()
+                self.lines = [line.strip().split("\t")
                               for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines)]
                 self.corpus_lines = len(self.lines)
 
@@ -36,51 +36,51 @@ class BERTDataset(Dataset):
         return self.corpus_lines
 
     def __getitem__(self, item):
-        # t1, t2, is_next_label = self.random_sent(item)
-        # t1_random, t1_label = self.random_word(t1)
-        # t2_random, t2_label = self.random_word(t2)
-        #
-        # # [CLS] tag = SOS tag, [SEP] tag = EOS tag
-        # t1 = [self.vocab.sos_index] + t1_random + [self.vocab.eos_index]
-        # t2 = t2_random + [self.vocab.eos_index]
-        #
-        # t1_label = [self.vocab.pad_index] + t1_label + [self.vocab.pad_index]
-        # t2_label = t2_label + [self.vocab.pad_index]
-        #
-        # segment_label = ([1 for _ in range(len(t1))] + [2 for _ in range(len(t2))])[:self.seq_len]
-        # bert_input = (t1 + t2)[:self.seq_len]
-        # bert_label = (t1_label + t2_label)[:self.seq_len]
-        #
-        # padding = [self.vocab.pad_index for _ in range(self.seq_len - len(bert_input))]
-        # bert_input.extend(padding), bert_label.extend(padding), segment_label.extend(padding)
-        #
-        # output = {"bert_input": bert_input,
-        #           "bert_label": bert_label,
-        #           "segment_label": segment_label,
-        #           "is_next": is_next_label}
-        #
-        # return {key: torch.tensor(value) for key, value in output.items()}
+        t1, t2, is_next_label = self.random_sent(item)
+        t1_random, t1_label = self.random_word(t1)
+        t2_random, t2_label = self.random_word(t2)
 
-        t = self.get_corpus_line(item)
-        t_random, t_label = self.random_word(t)
+        # [CLS] tag = SOS tag, [SEP] tag = EOS tag
+        t1 = [self.vocab.sos_index] + t1_random + [self.vocab.eos_index]
+        t2 = t2_random + [self.vocab.eos_index]
 
-        t = [self.vocab.sos_index] + t_random[:self.seq_len-2] + [self.vocab.eos_index]
-        t_label = [self.vocab.pad_index] + t_label[:self.seq_len-2] + [self.vocab.pad_index]
+        t1_label = [self.vocab.pad_index] + t1_label + [self.vocab.pad_index]
+        t2_label = t2_label + [self.vocab.pad_index]
 
-        segment_label = ([1] * len(t))[:self.seq_len]
-        bert_input = t[:self.seq_len]
-        bert_label = t_label[:self.seq_len]
+        segment_label = ([1 for _ in range(len(t1))] + [2 for _ in range(len(t2))])[:self.seq_len]
+        bert_input = (t1 + t2)[:self.seq_len]
+        bert_label = (t1_label + t2_label)[:self.seq_len]
 
         padding = [self.vocab.pad_index for _ in range(self.seq_len - len(bert_input))]
         bert_input.extend(padding), bert_label.extend(padding), segment_label.extend(padding)
 
-        output = {
-            "bert_input": bert_input,
-            "bert_label": bert_label,
-            "segment_label": segment_label
-        }
+        output = {"bert_input": bert_input,
+                  "bert_label": bert_label,
+                  "segment_label": segment_label,
+                  "is_next": is_next_label}
 
         return {key: torch.tensor(value) for key, value in output.items()}
+
+        # t = self.get_corpus_line(item)
+        # t_random, t_label = self.random_word(t)
+        #
+        # t = [self.vocab.sos_index] + t_random[:self.seq_len-2] + [self.vocab.eos_index]
+        # t_label = [self.vocab.pad_index] + t_label[:self.seq_len-2] + [self.vocab.pad_index]
+        #
+        # segment_label = ([1] * len(t))[:self.seq_len]
+        # bert_input = t[:self.seq_len]
+        # bert_label = t_label[:self.seq_len]
+        #
+        # padding = [self.vocab.pad_index for _ in range(self.seq_len - len(bert_input))]
+        # bert_input.extend(padding), bert_label.extend(padding), segment_label.extend(padding)
+        #
+        # output = {
+        #     "bert_input": bert_input,
+        #     "bert_label": bert_label,
+        #     "segment_label": segment_label
+        # }
+        #
+        # return {key: torch.tensor(value) for key, value in output.items()}
 
     def random_word(self, sentence):
         tokens = sentence.split()
@@ -122,8 +122,8 @@ class BERTDataset(Dataset):
 
     def get_corpus_line(self, item):
         if self.on_memory:
-            # return self.lines[item][0], self.lines[item][1]
-            return self.lines[item]
+            return self.lines[item][0], self.lines[item][1]
+            # return self.lines[item]
         else:
             line = self.file.__next__()
             if line is None:
@@ -131,9 +131,9 @@ class BERTDataset(Dataset):
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
                 line = self.file.__next__()
 
-            # t1, t2 = line[:-1].split("\t")
-            # return t1, t2
-            return line.strip()
+            t1, t2 = line.strip().split("\t")
+            return t1, t2
+            # return line.strip()
 
     def get_random_line(self):
         if self.on_memory:

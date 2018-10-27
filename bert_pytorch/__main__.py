@@ -3,7 +3,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 
-from numpy as np
+import numpy as np
 
 from .model import BERT
 from .trainer import BERTTrainer, FineTuningTrainer
@@ -22,12 +22,12 @@ def train():
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
     parser.add_argument("-p", "--pre_train_model", type=str, default=None, help="pre-trained model")
 
-    parser.add_argument("-hs", "--hidden", type=int, default=256, help="hidden size of transformer model")
+    parser.add_argument("-hs", "--hidden", type=int, default=128, help="hidden size of transformer model")
     parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
     parser.add_argument("-a", "--attn_heads", type=int, default=8, help="number of attention heads")
-    parser.add_argument("-s", "--seq_len", type=int, default=22, help="maximum sequence len")
+    parser.add_argument("-s", "--seq_len", type=int, default=23, help="maximum sequence len")
 
-    parser.add_argument("-b", "--batch_size", type=int, default=64, help="number of batch_size")
+    parser.add_argument("-b", "--batch_size", type=int, default=128, help="number of batch_size")
     parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
     parser.add_argument("-w", "--num_workers", type=int, default=16, help="dataloader worker size")
 
@@ -62,8 +62,8 @@ def train():
             if args.test_dataset is not None else None
 
         print("Creating Dataloader")
-        train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
-        test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.num_workers) \
+        train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+        test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers) \
             if test_dataset is not None else None
 
         print("Building BERT model")
@@ -84,8 +84,8 @@ def train():
             if args.test_dataset is not None else None
 
         print("Creating Dataloader")
-        train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
-        test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.num_workers) \
+        train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+        test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers) \
             if test_dataset is not None else None
 
         print("Building BERT model")

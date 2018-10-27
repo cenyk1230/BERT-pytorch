@@ -18,6 +18,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--edgelist', required=True, type=str)
     parser.add_argument('-l', '--label', required=True, type=str)
     parser.add_argument('-m', '--mode', default=0, type=int)
+    parser.add_argument('-tr', '--train_rate', default=0.5, type=float)
 
     args = parser.parse_args()
 
@@ -54,16 +55,16 @@ if __name__ == '__main__':
         neg_nodes = list(all_nodes - set(nodes))
         nodes = list(nodes)
 
-        train_node1, test_node1 = train_test_split(nodes, train_size=0.8)
-        train_node2, test_node2 = train_test_split(neg_nodes, train_size=0.8)
+        train_node1, test_node1 = train_test_split(nodes, train_size=args.train_rate)
+        train_node2, test_node2 = train_test_split(neg_nodes, train_size=args.train_rate)
 
-        with open(dire + '/train%d' % i, 'w') as out:
+        with open(dire + '/train_%s_%d' % (args.train_rate, i), 'w') as out:
             for v in train_node1:
                 out.write(' '.join(walks_dic[v]) + '\t1\n')
             for v in train_node2:
                 out.write(' '.join(walks_dic[v]) + '\t0\n')
 
-        with open(dire + '/test%d' % i, 'w') as out:
+        with open(dire + '/test_%s_%d' % (args.train_rate, i), 'w') as out:
             for v in test_node1:
                 out.write(' '.join(walks_dic[v]) + '\t1\n')
             for v in test_node2:

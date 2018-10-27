@@ -97,6 +97,9 @@ class FineTuningTrainer:
         avg_loss = 0.0
         total_correct = 0
         total_element = 0
+        n_loss = 0.0
+        n_correct = 0
+        n_element = 0
 
         y_scores = []
         y_labels = []
@@ -128,20 +131,24 @@ class FineTuningTrainer:
             total_correct += correct
             total_element += data["bert_label"].nelement()
 
-            post_fix = {
-                "epoch": epoch,
-                "iter": i,
-                "avg_loss": avg_loss / (i + 1),
-                "avg_acc": total_correct / total_element * 100,
-                "loss": loss.item()
-            }
-
             if i % self.log_freq == 0:
+                post_fix = {
+                    "epoch": epoch,
+                    "iter": i,
+                    "avg_loss": avg_loss / (i + 1),
+                    "avg_acc": total_correct / total_element * 100,
+                    "loss": (avg_loss - n_loss) / (self.log_freq if i > 0 else 1)
+                }
+
                 data_iter.write(str(post_fix))
 
-                if str_code == "train":
-                    self.writer.add_scalar(self.data_num + "_loss/train", loss, epoch * len(data_iter) + i)
-                    self.writer.add_scalar(self.data_num + "_accu/train", correct * 100.0 / data["bert_label"].nelement(), epoch * len(data_iter) + i)
+                if str_code == "train" and i > 0:
+                    self.writer.add_scalar(self.data_num + "_loss/train", (avg_loss - n_loss) / self.log_freq, epoch * len(data_iter) + i)
+                    self.writer.add_scalar(self.data_num + "_accu/train", (total_correct - n_correct) * 100.0 / (total_element - n_element), epoch * len(data_iter) + i)
+
+                n_loss = avg_loss
+                n_correct = total_correct
+                n_element = total_element
 
         if str_code == "test":
             self.writer.add_scalar(self.data_num + "_loss/test", avg_loss / len(data_iter), epoch)
@@ -163,9 +170,9 @@ class FineTuningTrainer:
             print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
                   total_correct * 100.0 / total_element, "f1=", f1)
 
-            tp = (y_labels == 1) * (y_scores == 1)
-            fp = (y_labels == 0) * (y_scores == 1)
-            fn = (y_labels == 1) * (y_scores == 0)
+            tp = np.sum((y_labels == 1) * (y_preds == 1))
+            fp = np.sum((y_labels == 0) * (y_preds == 1))
+            fn = np.sum((y_labels == 1) * (y_preds == 0))
 
             return f1, tp, fp, fn
 

@@ -7,7 +7,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--edgelist', type=str)
     parser.add_argument('--number-walks', type=int, default=10)
-    parser.add_argument('--walk-length', type=float, default=20)
+    parser.add_argument('--walk-length', type=int, default=20)
 
     args = parser.parse_args()
 
