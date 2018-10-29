@@ -41,6 +41,7 @@ def train():
     parser.add_argument("--adam_weight_decay", type=float, default=0.00, help="weight_decay of adam")
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
+    parser.add_argument("--dropout", type=float, default=0.0, help="dropout ratio")
 
     args = parser.parse_args()
 
@@ -67,7 +68,7 @@ def train():
             if test_dataset is not None else None
 
         print("Building BERT model")
-        bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
+        bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads, dropout=args.dropout)
 
         print("Creating BERT Trainer")
         trainer = BERTTrainer(bert, len(vocab), train_dataloader=train_data_loader, test_dataloader=test_data_loader,
@@ -92,7 +93,7 @@ def train():
         if args.pre_train_model:
             bert = torch.load(args.pre_train_model)
         else:
-            bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads)
+            bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads, dropout=args.dropout)
 
         print("Creating BERT Trainer")
         trainer = FineTuningTrainer(bert, args.hidden, 2, train_dataloader=train_data_loader, test_dataloader=test_data_loader,

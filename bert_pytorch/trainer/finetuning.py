@@ -73,7 +73,10 @@ class FineTuningTrainer:
         self.iteration(epoch, self.train_data)
 
     def test(self, epoch):
-        return self.iteration(epoch, self.test_data, train=False)
+        self.model.eval()
+        ret = self.iteration(epoch, self.test_data, train=False)
+        self.model.train()
+        return ret
 
     def iteration(self, epoch, data_loader, train=True):
         """
@@ -97,9 +100,6 @@ class FineTuningTrainer:
         avg_loss = 0.0
         total_correct = 0
         total_element = 0
-        n_loss = 0.0
-        n_correct = 0
-        n_element = 0
 
         y_scores = []
         y_labels = []
@@ -137,18 +137,14 @@ class FineTuningTrainer:
                     "iter": i,
                     "avg_loss": avg_loss / (i + 1),
                     "avg_acc": total_correct / total_element * 100,
-                    "loss": (avg_loss - n_loss) / (self.log_freq if i > 0 else 1)
+                    "loss": loss.item()
                 }
 
                 data_iter.write(str(post_fix))
 
-                if str_code == "train" and i > 0:
-                    self.writer.add_scalar(self.data_num + "_loss/train", (avg_loss - n_loss) / self.log_freq, epoch * len(data_iter) + i)
-                    self.writer.add_scalar(self.data_num + "_accu/train", (total_correct - n_correct) * 100.0 / (total_element - n_element), epoch * len(data_iter) + i)
-
-                n_loss = avg_loss
-                n_correct = total_correct
-                n_element = total_element
+                if str_code == "train":
+                    self.writer.add_scalar(self.data_num + "_loss/train", loss, epoch * len(data_iter) + i)
+                    self.writer.add_scalar(self.data_num + "_accu/train", correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
 
         if str_code == "test":
             self.writer.add_scalar(self.data_num + "_loss/test", avg_loss / len(data_iter), epoch)

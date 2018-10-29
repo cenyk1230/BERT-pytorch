@@ -75,7 +75,9 @@ class BERTTrainer:
         self.iteration(epoch, self.train_data)
 
     def test(self, epoch):
+        self.model.eval()
         self.iteration(epoch, self.test_data, train=False)
+        self.model.train()
 
     def iteration(self, epoch, data_loader, train=True):
         """
@@ -99,9 +101,6 @@ class BERTTrainer:
         avg_loss = 0.0
         total_correct = 0
         total_element = 0
-        n_loss = 0.0
-        n_correct = 0
-        n_element = 0
 
         for i, data in data_iter:
             # 0. batch_data will be sent into the device(GPU or cpu)
@@ -139,17 +138,13 @@ class BERTTrainer:
                     "iter": i,
                     "avg_loss": avg_loss / (i + 1),
                     "avg_acc": total_correct / total_element * 100,
-                    "loss": (avg_loss - n_loss) / (self.log_freq if i > 0 else 1)
+                    "loss": loss.item()
                 }
 
                 data_iter.write(str(post_fix))
 
-                if i > 0:
-                    self.writer.add_scalar(f'pretrain/{str_code}_loss', (avg_loss - n_loss) / self.log_freq, epoch * len(data_iter) + i)
-                    self.writer.add_scalar(f'pretrain/{str_code}_accu', (total_correct - n_correct) * 100.0 / (total_element - n_element), epoch * len(data_iter) + i)
-                n_loss = avg_loss
-                n_correct = total_correct
-                n_element = total_element
+                self.writer.add_scalar(f'pretrain/{str_code}_loss', loss, epoch * len(data_iter) + i)
+                self.writer.add_scalar(f'pretrain/{str_code}_accu', correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
               total_correct * 100.0 / total_element)
