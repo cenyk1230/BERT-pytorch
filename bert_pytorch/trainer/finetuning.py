@@ -22,7 +22,7 @@ class FineTuningTrainer:
     def __init__(self, bert: BERT, hidden: int, class_size : int,
                  train_dataloader: DataLoader, test_dataloader: DataLoader = None,
                  lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.00, warmup_steps=10000,
-                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, data_name=""):
+                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, logger_name: str = None):
         """
         :param bert: BERT model which you want to train
         :param vocab_size: total word vocab size
@@ -63,9 +63,7 @@ class FineTuningTrainer:
 
         self.log_freq = log_freq
 
-        self.data_num = data_name
-
-        self.writer = SummaryWriter()
+        self.writer = SummaryWriter(logger_name)
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
@@ -143,12 +141,12 @@ class FineTuningTrainer:
                 data_iter.write(str(post_fix))
 
                 if str_code == "train":
-                    self.writer.add_scalar(self.data_num + "_loss/train", loss, epoch * len(data_iter) + i)
-                    self.writer.add_scalar(self.data_num + "_accu/train", correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
+                    self.writer.add_scalar('finetune/train_loss', loss, epoch * len(data_iter) + i)
+                    self.writer.add_scalar('finetune/train_accu', correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
 
         if str_code == "test":
-            self.writer.add_scalar(self.data_num + "_loss/test", avg_loss / len(data_iter), epoch)
-            self.writer.add_scalar(self.data_num + "_accu/test", total_correct * 100.0 / total_element, epoch)
+            self.writer.add_scalar('finetune/test_loss', avg_loss / len(data_iter), epoch)
+            self.writer.add_scalar('finetune/test_accu', total_correct * 100.0 / total_element, epoch)
 
             # y_scores = torch.cat(y_scores).cpu().numpy()
             # y_labels = torch.cat(y_labels).cpu().numpy()
@@ -161,7 +159,7 @@ class FineTuningTrainer:
             y_preds[y_sorts[:np.sum(y_labels)]] = 1
 
             f1 = f1_score(y_labels, y_preds)
-            self.writer.add_scalar(self.data_num + "_f1/test", f1, epoch)
+            self.writer.add_scalar("finetune/test_f1", f1, epoch)
 
             print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
                   total_correct * 100.0 / total_element, "f1=", f1)

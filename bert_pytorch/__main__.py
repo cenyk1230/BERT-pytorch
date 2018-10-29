@@ -30,6 +30,7 @@ def train():
     parser.add_argument("-b", "--batch_size", type=int, default=128, help="number of batch_size")
     parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
     parser.add_argument("-w", "--num_workers", type=int, default=16, help="dataloader worker size")
+    parser.add_argument("-d", "--dropout", type=float, default=0.0, help="dropout ratio")
 
     parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
     parser.add_argument("--log_freq", type=int, default=10, help="printing loss every n iter: setting n")
@@ -41,9 +42,9 @@ def train():
     parser.add_argument("--adam_weight_decay", type=float, default=0.00, help="weight_decay of adam")
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
-    parser.add_argument("--dropout", type=float, default=0.0, help="dropout ratio")
 
     args = parser.parse_args()
+    logger_name = 'runs/' + args.vocab_path.split(".")[0].split("/")[-1] + f'-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
 
     print(args)
 
@@ -73,7 +74,8 @@ def train():
         print("Creating BERT Trainer")
         trainer = BERTTrainer(bert, len(vocab), train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                               lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
-                              with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq)
+                              with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
+                              logger_name=logger_name)
 
     else:
         print("Loading Train Dataset", args.train_dataset)
@@ -99,7 +101,7 @@ def train():
         trainer = FineTuningTrainer(bert, args.hidden, 2, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                                     lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                                     with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                                    data_name=args.vocab_path.split(".")[0].split("/")[-1])
+                                    logger_name=logger_name)
 
     scores = []
 
