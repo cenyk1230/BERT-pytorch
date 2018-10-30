@@ -142,7 +142,7 @@ class FineTuningTrainer:
 
                 if str_code == "train":
                     self.writer.add_scalar('finetune/train_loss', loss, epoch * len(data_iter) + i)
-                    self.writer.add_scalar('finetune/train_accu', correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
+                    self.writer.add_scalar('finetune/train_accu', correct / data["bert_label"].nelement(), epoch * len(data_iter) + i)
 
         if str_code == "test":
             self.writer.add_scalar('finetune/test_loss', avg_loss / len(data_iter), epoch)
