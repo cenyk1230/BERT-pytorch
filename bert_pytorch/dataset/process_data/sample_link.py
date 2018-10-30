@@ -21,7 +21,10 @@ if __name__ == '__main__':
     parser.add_argument('--number-walks', type=int, default=1)
     parser.add_argument('--walk-length', type=int, default=10)
     parser.add_argument('--threshold', type=int, default=1000)
+    parser.add_argument('--test', action='store_true')
+
     args = parser.parse_args()
+    save_path = args.edgelist + ('.test' if args.test else '') + '.links'
 
     with open(args.edgelist, 'r') as f:
         lines = f.read().strip().split('\n')
@@ -41,6 +44,8 @@ if __name__ == '__main__':
 
     links = []
     for u, v in edgelist * args.number_walks:
+        if args.test and np.random.random() > 0.1:
+            continue
 
         ego_u = [u]
         walker = random_walk_with_restart(
@@ -71,8 +76,7 @@ if __name__ == '__main__':
                 break
 
         links.append((ego_u, ego_v))
-
-    with open(args.edgelist + '.links', 'w') as f:
+    with open(save_path, 'w') as f:
         for link in links:
             f.write(' '.join([str(v) for v in link[0]]) + '\t' + ' '.join([str(v) for v in link[1]]) + '\n')
 
