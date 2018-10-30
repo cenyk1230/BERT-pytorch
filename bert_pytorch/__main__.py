@@ -1,3 +1,5 @@
+import os
+import sys
 import argparse
 
 import torch
@@ -46,7 +48,15 @@ def train():
     args = parser.parse_args()
     logger_name = 'runs/' + args.vocab_path.split(".")[0].split("/")[-1] + f'-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
 
-    print(args)
+    if os.path.exists(logger_name):
+        for file_name in os.listdir(logger_name):
+            if file_name.startswith("events.out.tfevents"):
+                print(f"Event file {file_name} already exists")
+                if input('Remove this file? (y/n) ') == 'y':
+                    os.remove(os.path.join(logger_name, file_name))
+                    print(f"Event file {file_name} removed")
+                else:
+                    sys.exit(1)
 
     print("Training Mode:", "Pre-training" if args.mode == 0 else "Fine-tuning")
 

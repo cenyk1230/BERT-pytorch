@@ -124,7 +124,7 @@ class WordVocab(Vocab):
             if isinstance(line, list):
                 words = line
             else:
-                words = line.replace("\n", "").replace("\t", "").split()
+                words = line.replace("\n", "").replace("\t", " ").split()
 
             for word in words:
                 counter[word] += 1
