@@ -145,6 +145,8 @@ class BERTTrainer:
 
                 self.writer.add_scalar(f'pretrain/{str_code}_loss', loss, epoch * len(data_iter) + i)
                 self.writer.add_scalar(f'pretrain/{str_code}_accu', correct / data["is_next"].nelement(), epoch * len(data_iter) + i)
+                for task_i, task_loss in enumerate([mask_loss, next_loss]):
+                    self.writer.add_scalar(f'task_{task_i + 1}/{str_code}_loss', task_loss, epoch * len(data_iter) + i)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
               total_correct * 100.0 / total_element)

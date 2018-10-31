@@ -75,7 +75,7 @@ if __name__ == '__main__':
             if trial >= args.threshold:
                 break
 
-        links.append((ego_u, ego_v))
+        links.append((list(reversed(ego_u)), ego_v))
     with open(save_path, 'w') as f:
         for link in links:
             f.write(' '.join([str(v) for v in link[0]]) + '\t' + ' '.join([str(v) for v in link[1]]) + '\n')
