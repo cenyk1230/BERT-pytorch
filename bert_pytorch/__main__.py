@@ -18,7 +18,8 @@ def train():
     parser.add_argument("-c", "--train_dataset", required=True, type=str, help="train dataset for train bert")
     parser.add_argument("-t", "--test_dataset", type=str, default=None, help="test set for evaluate train set")
     parser.add_argument("-v", "--vocab_path", required=True, type=str, help="built vocab model path with bert-vocab")
-    parser.add_argument("-o", "--output_path", required=True, type=str, help="ex)output/bert.model")
+    parser.add_argument("-n", "--name", type=str, default='', help="exp name")
+    # parser.add_argument("-o", "--output_path", required=True, type=str, help="ex)output/bert.model")
     parser.add_argument("-sf", "--score_file", type=str, default=None, help="score saving path")
 
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
@@ -46,7 +47,9 @@ def train():
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
 
     args = parser.parse_args()
-    logger_name = 'runs/' + args.vocab_path.split(".")[0].split("/")[-1] + f'-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
+    exp_name = args.vocab_path.split(".")[0].split("/")[-1] + f'-{args.name}-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
+    logger_name = 'runs/' + exp_name
+    output_path = 'output/' + exp_name + '.model'
 
     if os.path.exists(logger_name):
         for file_name in os.listdir(logger_name):
@@ -118,7 +121,7 @@ def train():
     print("Training Start")
     for epoch in range(args.epochs):
         trainer.train(epoch)
-        trainer.save(epoch, args.output_path)
+        trainer.save(epoch, output_path)
 
         if test_data_loader is not None:
             scores.append(trainer.test(epoch))
