@@ -19,8 +19,7 @@ def train():
     parser.add_argument("-t", "--test_dataset", type=str, default=None, help="test set for evaluate train set")
     parser.add_argument("-v", "--vocab_path", required=True, type=str, help="built vocab model path with bert-vocab")
     parser.add_argument("-n", "--name", type=str, default='', help="exp name")
-    # parser.add_argument("-o", "--output_path", required=True, type=str, help="ex)output/bert.model")
-    parser.add_argument("-sf", "--score_file", type=str, default=None, help="score saving path")
+    parser.add_argument("-nl", "--num_labels", type=int, default=None, help="number of mult-label")
 
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
     parser.add_argument("-p", "--pre_train_model", type=str, default=None, help="pre-trained model")
@@ -47,7 +46,7 @@ def train():
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
 
     args = parser.parse_args()
-    exp_name = args.vocab_path.split(".")[0].split("/")[-1] + f'-{args.name}-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
+    exp_name = f'{args.name}-{args.vocab_path.split(".")[0].split("/")[-1]}-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
     logger_name = 'runs/' + exp_name
     output_path = 'output/' + exp_name + '.model'
 
@@ -111,24 +110,17 @@ def train():
             bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads, dropout=args.dropout)
 
         print("Creating BERT Trainer")
-        trainer = FineTuningTrainer(bert, args.hidden, 2, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
+        trainer = FineTuningTrainer(bert, args.hidden, args.num_labels, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                                     lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                                     with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
                                     logger_name=logger_name)
 
-    scores = []
 
     print("Training Start")
     for epoch in range(args.epochs):
         trainer.train(epoch)
-        trainer.save(epoch, output_path)
+        if (epoch + 1) % 20 == 0:
+            trainer.save(epoch, output_path)
 
         if test_data_loader is not None:
-            scores.append(trainer.test(epoch))
-
-    if scores and args.score_file:
-        scores = np.array(scores)
-        max_idx = np.argmax(scores[:, 0])
-        with open(args.score_file, "a") as f:
-            f.write(' '.join([str(x) for x in scores[max_idx]]) + '\n')
-
+            trainer.test(epoch)

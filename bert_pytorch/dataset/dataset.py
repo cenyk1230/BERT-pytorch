@@ -188,7 +188,7 @@ class LabeledDataset(Dataset):
         segment_label = ([1] * len(t))[:self.seq_len]
         bert_input = t[:self.seq_len]
         # bert_label = int(t_label)
-        bert_label = [int(x) for x in t_label.split()]
+        bert_label = [float(x) for x in t_label.split()]
 
         padding = [self.vocab.pad_index for _ in range(self.seq_len - len(bert_input))]
         bert_input.extend(padding), segment_label.extend(padding)

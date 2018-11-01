@@ -8,7 +8,8 @@ from tensorboardX import SummaryWriter
 import numpy as np
 from sklearn.metrics import f1_score
 
-from ..model import BERT, CLS_MODEL
+from ..model import BERT, MultiLabelClassificationModel
+from ..model.utils.scoring import construct_indicator
 from .optim_schedule import ScheduledOptim
 
 import tqdm
@@ -42,7 +43,7 @@ class FineTuningTrainer:
         # This BERT model will be saved every epoch
         self.bert = bert
         # Initialize the classification model, with BERT model
-        self.model = CLS_MODEL(bert, hidden, class_size).to(self.device)
+        self.model = MultiLabelClassificationModel(bert, hidden, class_size).to(self.device)
 
         # Distributed GPU training if CUDA can detect more than 1 GPU
         if with_cuda and torch.cuda.device_count() > 1:
@@ -59,7 +60,7 @@ class FineTuningTrainer:
         self.optim_schedule = ScheduledOptim(self.optim, self.bert.hidden, n_warmup_steps=warmup_steps)
 
         # Using Negative Log Likelihood Loss function for predicting the masked_token
-        self.criterion = nn.NLLLoss()
+        self.criterion = nn.BCELoss()
 
         self.log_freq = log_freq
 
@@ -96,8 +97,6 @@ class FineTuningTrainer:
                               bar_format="{l_bar}{r_bar}")
 
         avg_loss = 0.0
-        total_correct = 0
-        total_element = 0
 
         y_scores = []
         y_labels = []
@@ -118,61 +117,38 @@ class FineTuningTrainer:
                 loss.backward()
                 self.optim_schedule.step_and_update_lr()
             else:
-                # print(output[:,1])
-                # print(data["bert_label"])
-                y_scores.append(output[:,1].data.cpu().numpy())
+                y_scores.append(output.data.cpu().numpy())
                 y_labels.append(data["bert_label"].cpu().numpy())
 
-            # prediction accuracy
-            correct = output.argmax(dim=-1).eq(data["bert_label"]).sum().item()
             avg_loss += loss.item()
-            total_correct += correct
-            total_element += data["bert_label"].nelement()
 
             if i % self.log_freq == 0:
                 post_fix = {
                     "epoch": epoch,
                     "iter": i,
                     "avg_loss": avg_loss / (i + 1),
-                    "avg_acc": total_correct / total_element * 100,
                     "loss": loss.item()
                 }
 
                 data_iter.write(str(post_fix))
 
                 if str_code == "train":
+                    y = data["bert_label"].cpu().numpy()
+                    y_pred = construct_indicator(output.data.cpu().numpy(), y)
                     self.writer.add_scalar('finetune/train_loss', loss, epoch * len(data_iter) + i)
-                    self.writer.add_scalar('finetune/train_accu', correct / data["bert_label"].nelement(), epoch * len(data_iter) + i)
+                    self.writer.add_scalar('finetune/train_accu', (y_pred == y).mean(axis=1).mean(), epoch * len(data_iter) + i)
 
         if str_code == "test":
+            y_score = np.concatenate(y_scores)
+            y_label = np.concatenate(y_labels)
+            y_pred = construct_indicator(y_score, y_label)
             self.writer.add_scalar('finetune/test_loss', avg_loss / len(data_iter), epoch)
-            self.writer.add_scalar('finetune/test_accu', total_correct * 100.0 / total_element, epoch)
+            self.writer.add_scalar('finetune/test_accu', (y_pred == y_label).mean(axis=1).mean(), epoch)
 
-            # y_scores = torch.cat(y_scores).cpu().numpy()
-            # y_labels = torch.cat(y_labels).cpu().numpy()
-
-            y_scores = np.concatenate(y_scores)
-            y_labels = np.concatenate(y_labels)
-
-            y_sorts = np.argsort(y_scores)[::-1]
-            y_preds = np.zeros_like(y_labels, dtype=np.int)
-            y_preds[y_sorts[:np.sum(y_labels)]] = 1
-
-            f1 = f1_score(y_labels, y_preds)
-            self.writer.add_scalar("finetune/test_f1", f1, epoch)
-
-            print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
-                  total_correct * 100.0 / total_element, "f1=", f1)
-
-            tp = np.sum((y_labels == 1) * (y_preds == 1))
-            fp = np.sum((y_labels == 0) * (y_preds == 1))
-            fn = np.sum((y_labels == 1) * (y_preds == 0))
-
-            return f1, tp, fp, fn
-
-        else:
-            print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
-                  total_correct * 100.0 / total_element)
+            mi = f1_score(y_label, y_pred, average="micro")
+            ma = f1_score(y_label, y_pred, average="macro")
+            self.writer.add_scalar("score/micro_f1", mi, epoch)
+            self.writer.add_scalar("score/macro_f1", ma, epoch)
 
 
     def save(self, epoch, file_path="output/finetuning.model"):

@@ -23,3 +23,25 @@ class CLS_MODEL(nn.Module):
     def forward(self, x, segment_label):
         x = self.bert(x, segment_label)
         return self.softmax(self.linear(x))
+
+
+class MultiLabelClassificationModel(nn.Module):
+    """
+    Multi-label Classification Model
+    """
+
+    def __init__(self, bert: BERT, hidden, class_size):
+        """
+        :param bert: BERT model which has been trained
+        :param hidden: output size of BERT model
+        :param class_size: total class size
+        """
+
+        super().__init__()
+        self.bert = bert
+        self.linear = nn.Linear(hidden, class_size)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x, segment_label):
+        x = self.bert(x, segment_label)
+        return self.sigmoid(self.linear(x))
