@@ -17,9 +17,11 @@ def train():
 
     parser.add_argument("-c", "--train_dataset", required=True, type=str, help="train dataset for train bert")
     parser.add_argument("-t", "--test_dataset", type=str, default=None, help="test set for evaluate train set")
+    parser.add_argument("-va", "--valid_dataset", type=str, default=None, help="validation set for early stop")
     parser.add_argument("-v", "--vocab_path", required=True, type=str, help="built vocab model path with bert-vocab")
     parser.add_argument("-n", "--name", type=str, default='', help="exp name")
     parser.add_argument("-nl", "--num_labels", type=int, default=None, help="number of mult-label")
+    parser.add_argument("-es", "--early_stop", type=int, default=-1, help="early stop")
 
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
     parser.add_argument("-p", "--pre_train_model", type=str, default=None, help="pre-trained model")
@@ -48,9 +50,17 @@ def train():
     parser.add_argument("--seed", type=int, default=0)
 
     args = parser.parse_args()
+
+    # print(args)
+
     exp_name = f'{args.name}-{args.vocab_path.split(".")[0].split("/")[-1]}-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
     logger_name = 'runs/' + exp_name
-    output_path = 'output/' + exp_name + '.model'
+
+    output_dir = f'output/{args.name}-{args.vocab_path.split(".")[0].split("/")[-1]}/'
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    output_path = output_dir + exp_name + '.model'
+
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
@@ -108,10 +118,16 @@ def train():
         test_dataset = LabeledDataset(args.test_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory) \
             if args.test_dataset is not None else None
 
+        print("Loading Valid Dataset", args.valid_dataset)
+        valid_dataset = LabeledDataset(args.valid_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory) \
+            if args.valid_dataset is not None else None
+
         print("Creating Dataloader")
         train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
         test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers) \
             if test_dataset is not None else None
+        valid_data_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers) \
+            if valid_dataset is not None else None
 
         print("Building BERT model")
         if args.pre_train_model:
@@ -129,8 +145,12 @@ def train():
         trainer = FineTuningTrainer(bert, args.hidden, args.num_labels, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                                     lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                                     with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                                    logger_name=logger_name)
+                                    logger_name=logger_name, valid_dataloader=valid_data_loader)
 
+
+    valid_best_loss = None
+    early_stop_counter = 0
+    micro, macro = 0.0, 0.0
 
     print("Training Start")
     for epoch in range(args.epochs):
@@ -139,4 +159,26 @@ def train():
             trainer.save(epoch, output_path)
 
         if test_data_loader is not None:
-            trainer.test(epoch)
+            ret = trainer.test(epoch)
+            if ret is not None:
+                micro, macro = ret
+
+        if args.mode == 1 and valid_data_loader is not None:
+            valid_loss = trainer.valid(epoch)
+            # print(epoch, valid_loss, early_stop_counter)
+            if valid_best_loss is None:
+                valid_best_loss = valid_loss
+            elif valid_loss < valid_best_loss:
+                valid_best_loss = valid_loss
+                early_stop_counter = 0
+            else:
+                early_stop_counter += 1
+                if args.early_stop != -1 and early_stop_counter >= args.early_stop:
+                    print("EarlyStopping: Stop Training")
+                    trainer.save(epoch, output_path)
+                    break
+
+    if args.mode == 1:
+        output_ret = 'output/' + exp_name + '.score'
+        with open(output_ret, "a") as f:
+            f.write(str(micro) + ' ' + str(macro) + '\n')

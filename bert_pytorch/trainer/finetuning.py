@@ -21,7 +21,7 @@ class FineTuningTrainer:
     """
 
     def __init__(self, bert: BERT, hidden: int, class_size : int,
-                 train_dataloader: DataLoader, test_dataloader: DataLoader = None,
+                 train_dataloader: DataLoader, test_dataloader: DataLoader = None, valid_dataloader: DataLoader = None,
                  lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.00, warmup_steps=10000,
                  with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, logger_name: str = None):
         """
@@ -53,6 +53,7 @@ class FineTuningTrainer:
         # Setting the train and test data loader
         self.train_data = train_dataloader
         self.test_data = test_dataloader
+        self.valid_data = valid_dataloader
 
         # Setting the Adam optimizer with hyper-param
         self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
@@ -73,23 +74,27 @@ class FineTuningTrainer:
 
     def test(self, epoch):
         self.model.eval()
-        ret = self.iteration(epoch, self.test_data, train=False)
+        ret = self.iteration(epoch, self.test_data, str_code="test")
         self.model.train()
         return ret
 
-    def iteration(self, epoch, data_loader, train=True):
+    def valid(self, epoch):
+        self.model.eval()
+        ret = self.iteration(epoch, self.valid_data, str_code="valid")
+        self.model.train()
+        return ret
+
+    def iteration(self, epoch, data_loader, str_code="train"):
         """
         loop over the data_loader for training or testing
         if on train status, backward operation is activated
-        and also auto save the model every peoch
+        and also auto save the model every epoch
 
         :param epoch: current epoch index
         :param data_loader: torch.utils.data.DataLoader for iteration
-        :param train: boolean value of is train or test
-        :return: None
+        :param str_code: string value of is train or test or valid
+        :return: None or score or loss
         """
-        str_code = "train" if train else "test"
-
         # Setting the tqdm progress bar
         data_iter = tqdm.tqdm(enumerate(data_loader),
                               desc="EP_%s:%d" % (str_code, epoch),
@@ -112,7 +117,7 @@ class FineTuningTrainer:
             loss = self.criterion(output, data["bert_label"])
 
             # 3. backward and optimization only in train
-            if train:
+            if str_code == "train":
                 self.optim_schedule.zero_grad()
                 loss.backward()
                 self.optim_schedule.step_and_update_lr()
@@ -138,17 +143,22 @@ class FineTuningTrainer:
                     self.writer.add_scalar('finetune/train_loss', loss, epoch * len(data_iter) + i)
                     self.writer.add_scalar('finetune/train_accu', (y_pred == y).mean(axis=1).mean(), epoch * len(data_iter) + i)
 
-        if str_code == "test":
+        if str_code == "test" or str_code == "valid":
             y_score = np.concatenate(y_scores)
             y_label = np.concatenate(y_labels)
             y_pred = construct_indicator(y_score, y_label)
-            self.writer.add_scalar('finetune/test_loss', avg_loss / len(data_iter), epoch)
-            self.writer.add_scalar('finetune/test_accu', (y_pred == y_label).mean(axis=1).mean(), epoch)
+            self.writer.add_scalar(f'finetune/{str_code}_loss', avg_loss / len(data_iter), epoch)
+            self.writer.add_scalar(f'finetune/{str_code}_accu', (y_pred == y_label).mean(axis=1).mean(), epoch)
 
             mi = f1_score(y_label, y_pred, average="micro")
             ma = f1_score(y_label, y_pred, average="macro")
-            self.writer.add_scalar("score/micro_f1", mi, epoch)
-            self.writer.add_scalar("score/macro_f1", ma, epoch)
+            self.writer.add_scalar(f"score/{str_code}_micro_f1", mi, epoch)
+            self.writer.add_scalar(f"score/{str_code}_macro_f1", ma, epoch)
+
+            if str_code == "test":
+                return mi, ma
+            elif str_code == "valid":
+                return avg_loss / len(data_iter)
 
 
     def save(self, epoch, file_path="output/finetuning.model"):
