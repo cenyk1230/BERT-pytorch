@@ -23,6 +23,7 @@ def train():
 
     parser.add_argument("-m", "--mode", type=int, default=0, help="pre-training(0) or fine-tuning(1)")
     parser.add_argument("-p", "--pre_train_model", type=str, default=None, help="pre-trained model")
+    parser.add_argument("-emb", "--pre_train_embed", type=str, default=None, help="pre-trained token embeddings")
 
     parser.add_argument("-hs", "--hidden", type=int, default=128, help="hidden size of transformer model")
     parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
@@ -44,11 +45,14 @@ def train():
     parser.add_argument("--adam_weight_decay", type=float, default=0.00, help="weight_decay of adam")
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
+    parser.add_argument("--seed", type=int, default=0)
 
     args = parser.parse_args()
     exp_name = f'{args.name}-{args.vocab_path.split(".")[0].split("/")[-1]}-m_{args.mode}-hs_{args.hidden}-l_{args.layers}-a_{args.attn_heads}-b_{args.batch_size}-lr_{args.lr}-d_{args.dropout}'
     logger_name = 'runs/' + exp_name
     output_path = 'output/' + exp_name + '.model'
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
     if os.path.exists(logger_name):
         for file_name in os.listdir(logger_name):
@@ -82,6 +86,12 @@ def train():
 
         print("Building BERT model")
         bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads, dropout=args.dropout)
+        if args.pre_train_embed:
+            pretrain_embed = np.load(args.pre_train_embed)
+            # bert.embedding.token.weight.requires_grad = False
+            with torch.no_grad():
+                for i in range(pretrain_embed.shape[0]):
+                    bert.embedding.token.weight[5 + i] = torch.from_numpy(pretrain_embed[int(vocab.itos[5 + i])])
 
         print("Creating BERT Trainer")
         trainer = BERTTrainer(bert, len(vocab), train_dataloader=train_data_loader, test_dataloader=test_data_loader,
@@ -108,6 +118,12 @@ def train():
             bert = torch.load(args.pre_train_model)
         else:
             bert = BERT(len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads, dropout=args.dropout)
+            if args.pre_train_embed:
+                pretrain_embed = np.load(args.pre_train_embed)
+                # bert.embedding.token.weight.requires_grad = False
+                with torch.no_grad():
+                    for i in range(pretrain_embed.shape[0]):
+                        bert.embedding.token.weight[5 + i] = torch.from_numpy(pretrain_embed[int(vocab.itos[5 + i])])
 
         print("Creating BERT Trainer")
         trainer = FineTuningTrainer(bert, args.hidden, args.num_labels, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
